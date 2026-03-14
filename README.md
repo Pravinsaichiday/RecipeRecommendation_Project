@@ -1,6 +1,6 @@
 # FlavorFindAI
 
-🌐 Live Website: https://flavorfindai.vercel.app/
+Live Website: https://flavorfindai.vercel.app/
 
 ## About
 
