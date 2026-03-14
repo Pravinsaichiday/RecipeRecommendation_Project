@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlavorFind AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- THEME VARIABLES --- */
+        :root {
+            --bg-color: #0E1117;
+            --sidebar-bg: #262730;
+            --text-color: #FAFAFA;
+            --text-secondary: #97999B;
+            --primary: #FF4B4B;
+            --primary-hover: #FF3333;
+            --input-bg: #31333F;
+            --border-color: #41444C;
+            --success-bg: rgba(33, 195, 84, 0.2);
+            --success-border: rgba(33, 195, 84, 0.4);
+            --success-text: #21c354;
+            --font-stack: 'Source Sans Pro', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-stack); }
+
+        body { background-color: var(--bg-color); color: var(--text-color); height: 100vh; display: flex; overflow: hidden; }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 350px;
+            background: var(--sidebar-bg);
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            height: 100%;
+            transition: margin-left 0.3s ease;
+            flex-shrink: 0;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar.collapsed { margin-left: -350px; }
+
+        .brand h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 2rem; color: var(--text-color); display: flex; align-items: center; gap: 10px; }
+        
+        .filter-group { margin-bottom: 1.5rem; }
+        .filter-group label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-color); }
+        .sub-label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px; display: block; }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            color: var(--text-color);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border 0.2s;
+        }
+        input:focus, select:focus { border-color: var(--primary); }
+        input[type="range"] { width: 100%; accent-color: var(--primary); cursor: pointer; margin-top: 5px; }
+
+        .search-btn {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            color: var(--text-color);
+            border: 1px solid var(--text-secondary);
+            border-radius: 5px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .search-btn:hover { border-color: var(--primary); color: var(--primary); background: rgba(255, 75, 75, 0.1); }
+
+        .team-footer { margin-top: auto; padding-top: 2rem; border-top: 1px solid var(--border-color); font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; }
+        .team-footer strong { color: var(--text-color); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+
+        /* --- MAIN CONTENT --- */
+        .main-wrapper { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; position: relative; }
+        
+        .top-bar { padding: 10px 20px; display: flex; align-items: center; }
+        .toggle-btn { background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer; padding: 5px; transition: 0.2s; }
+        .toggle-btn:hover { color: var(--text-color); }
+
+        .main-content { flex: 1; padding: 1rem 4rem 4rem 4rem; overflow-y: auto; scroll-behavior: smooth; }
+        
+        .app-header h1 { font-size: 3rem; font-weight: 700; margin-bottom: 10px; }
+        .app-header p { font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 2rem; }
+
+        .result-box {
+            background-color: var(--success-bg);
+            border: 1px solid var(--success-border);
+            color: var(--success-text);
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 3rem;
+            font-weight: 600;
+            display: none; 
+        }
+
+        /* RECIPE CARD */
+        .recipe-container { margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 1px solid var(--border-color); animation: fadeIn 0.5s ease; }
+        
+        .recipe-header { display: flex; align-items: center; gap: 15px; margin-bottom: 0.5rem; flex-wrap: wrap; }
+        .recipe-title { font-size: 1.8rem; font-weight: 700; color: var(--text-color); }
+        .cuisine-tag { background: #333; color: #ddd; padding: 4px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: 600; border: 1px solid #555; }
+        .diet-tag { background: #1C4D2A; color: #D4EDDA; padding: 4px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: 600; border: 1px solid #28a745; }
+
+        .recipe-desc { font-style: italic; color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 1rem; }
+        
+        .meta-row { display: flex; gap: 30px; margin-bottom: 2rem; font-weight: 600; font-size: 0.95rem; color: var(--text-color); }
+
+        /* SIDE-BY-SIDE LAYOUT */
+        .details-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 4rem; }
+        
+        h3 { font-size: 1.3rem; margin-bottom: 1rem; font-weight: 600; color: var(--text-color); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; display: inline-block;}
+        
+        /* CLEAN INGREDIENTS LIST */
+        .ing-list { list-style: none; padding: 0; }
+        .ing-list li { 
+            margin-bottom: 8px; 
+            color: var(--text-color); 
+            font-size: 1rem; 
+            padding: 8px 12px;
+            background-color: rgba(255,255,255,0.05); /* Subtle background for clarity */
+            border-radius: 4px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        /* CLEAR INSTRUCTIONS LIST */
+        .inst-list p { margin-bottom: 15px; line-height: 1.6; color: var(--text-color); font-size: 1rem; }
+        .inst-step { display: flex; gap: 15px; margin-bottom: 15px; }
+        .step-num { 
+            font-weight: bold; color: var(--primary); font-size: 1.1rem; min-width: 25px; 
+        }
+
+        .save-btn {
+            margin-top: 2rem;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        .save-btn:hover { background-color: var(--border-color); }
+
+        .empty-state { text-align: center; margin-top: 4rem; color: var(--text-secondary); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 900px) {
+            .container { flex-direction: column; }
+            .sidebar { position: absolute; z-index: 1000; height: 100%; left: 0; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+            .sidebar.collapsed { transform: translateX(-100%); margin-left: 0; }
+            .details-grid { grid-template-columns: 1fr; gap: 2rem; }
+            .main-content { padding: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="brand">
+            <h1>👨‍🍳 FlavorFind AI</h1>
+        </div>
+        
+        <div class="filter-group">
+            <label>🌱 Dietary Preference</label>
+            <select id="dietSelect">
+                <option value="Any">Any</option>
+                <option value="Vegetarian">Vegetarian</option>
+                <option value="Non-Vegetarian">Non-Vegetarian</option>
+                <option value="Vegan">Vegan</option>
+                <option value="Gluten Free">Gluten Free</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>🌎 Cuisine Type</label>
+            <select id="cuisineSelect">
+                <option value="Any">Any</option>
+                <option value="Indian">Indian</option>
+                <option value="Italian">Italian</option>
+                <option value="Mexican">Mexican</option>
+                <option value="Chinese">Chinese</option>
+                <option value="American">American</option>
+                <option value="Thai">Thai</option>
+                <option value="Mediterranean">Mediterranean</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>🔍 Keyword Constraints</label>
+            <span class="sub-label">e.g., 'chicken', 'pasta', 'spicy'</span>
+            <input type="text" id="searchInput" placeholder="Type keywords...">
+        </div>
+
+        <div class="filter-group">
+            <label>🚫 Allergy Preferences</label>
+            <span class="sub-label">e.g., 'peanuts', 'dairy', 'gluten'</span>
+            <input type="text" id="allergyInput" placeholder="Comma-separated allergies">
+        </div>
+
+        <div class="filter-group">
+            <label>⏱️ Max Prep Time</label>
+            <input type="number" id="timeInput" placeholder="30" value="45">
+        </div>
+
+        <div class="filter-group">
+            <label>📊 Number of Recipes</label>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <input type="range" id="numRecipes" min="1" max="10" value="5" oninput="document.getElementById('numVal').innerText = this.value">
+                <span id="numVal" style="margin-left: 10px; font-weight: bold; color: var(--primary);">5</span>
+            </div>
+        </div>
+
+        <button onclick="findRecipes()" class="search-btn">Get Recommendations</button>
+
+        <div class="team-footer">
+            <strong>Made by Team - 4 FEDF S-3</strong>
+            C.Pravin Sai - 2420030777<br>
+            N. Rithvik Sai - 2420030333<br>
+            M.Abrar Hussain - 2420090140
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <div class="main-wrapper">
+        <div class="top-bar">
+            <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+        </div>
+
+        <main class="main-content">
+            <div class="app-header">
+                <h1>FlavorFind AI</h1>
+                <p>Find your next favorite meal, tailored just for you.</p>
+            </div>
+
+            <div id="resultBox" class="result-box"></div>
+
+            <div id="recipeFeed">
+                <div class="empty-state">
+                    <h3>Ready to cook?</h3>
+                    <p>Adjust the filters in the sidebar and click "Get Recommendations" to start.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- DETAILED RECIPE DATABASE (50 items) ---
+        const recipesDB = [
+            // INDIAN
+            { 
+                name: "Butter Chicken", cuisine: "Indian", diet: "Non-Vegetarian", time: 45, cals: 480, 
+                ingredients: ["500g Chicken Thighs", "2 tbsp Butter", "1/2 cup Heavy Cream", "1 cup Tomato Puree", "1 tbsp Garam Masala", "1 tbsp Ginger Garlic Paste", "1 tbsp Fenugreek Leaves (Kasuri Methi)"], 
+                instructions: "1. Marinate chicken with yogurt, chili powder, and ginger-garlic paste for 30 mins.\n2. Pan-fry chicken pieces in a little oil until golden brown.\n3. In a separate pot, melt butter and sauté spices until fragrant.\n4. Add tomato puree and simmer for 10 mins.\n5. Stir in cream and fenugreek leaves.\n6. Add chicken to the sauce and simmer for 5-7 mins before serving.", 
+                desc: "Rich and creamy classic Indian curry with tender chicken." 
+            },
+            { 
+                name: "Paneer Tikka Masala", cuisine: "Indian", diet: "Vegetarian", time: 40, cals: 350, 
+                ingredients: ["250g Paneer", "1 cup Yogurt", "1 Onion (diced)", "1 cup Tomato Puree", "1/2 cup Cream", "2 tsp Tandoori Masala"], 
+                instructions: "1. Marinate paneer cubes in yogurt and tandoori masala for 20 mins.\n2. Grill or pan-fry the paneer until slightly charred.\n3. Sauté onions in a pan until golden.\n4. Add tomato puree and cook until oil separates.\n5. Stir in cream and the grilled paneer.\n6. Simmer for 5 minutes and serve hot with naan.", 
+                desc: "Grilled cottage cheese cubes in a spicy, creamy tomato gravy." 
+            },
+            { 
+                name: "Dal Tadka", cuisine: "Indian", diet: "Vegetarian", time: 30, cals: 220, 
+                ingredients: ["1 cup Toor Dal", "3 cloves Garlic (minced)", "1 tsp Cumin Seeds", "2 tbsp Ghee", "2 Dried Red Chillies", "1/2 tsp Turmeric"], 
+                instructions: "1. Rinse dal and pressure cook with turmeric and water until soft.\n2. Mash the dal slightly to get a creamy texture.\n3. In a small pan, heat ghee.\n4. Add cumin seeds, garlic, and dried red chillies.\n5. Once garlic is golden, pour this tempering (tadka) over the cooked dal.\n6. Garnish with cilantro and serve with rice.", 
+                desc: "Comforting yellow lentil soup with a flavorful garlic tempering." 
+            },
+            { 
+                name: "Chicken Biryani", cuisine: "Indian", diet: "Non-Vegetarian", time: 60, cals: 550, 
+                ingredients: ["2 cups Basmati Rice", "500g Chicken", "1/2 cup Yogurt", "1 pinch Saffron", "1 cup Fried Onions", "2 tbsp Biryani Masala"], 
+                instructions: "1. Marinate chicken with yogurt and biryani masala for 1 hour.\n2. Par-boil the basmati rice with whole spices (cardamom, cloves).\n3. In a heavy pot, layer the marinated chicken at the bottom.\n4. Cover with the par-boiled rice.\n5. Sprinkle saffron milk and fried onions on top.\n6. Cover tightly and cook on low heat (dum) for 20 minutes.", 
+                desc: "Aromatic layered rice and chicken dish cooked with saffron." 
+            },
+            { 
+                name: "Aloo Gobi", cuisine: "Indian", diet: "Vegan", time: 25, cals: 180, 
+                ingredients: ["2 Potatoes (cubed)", "1 Cauliflower (florets)", "1 tsp Turmeric", "1 tsp Cumin Seeds", "1 inch Ginger (chopped)", "Fresh Coriander"], 
+                instructions: "1. Heat oil in a pan and add cumin seeds.\n2. Add potatoes and fry for 5 minutes until edges are golden.\n3. Add cauliflower florets, ginger, and turmeric.\n4. Cover and steam on low heat for 10-15 minutes.\n5. Remove lid, increase heat to crisp up the veggies slightly.\n6. Garnish with fresh coriander.", 
+                desc: "Simple and hearty potato and cauliflower stir fry." 
+            },
+            { 
+                name: "Chana Masala", cuisine: "Indian", diet: "Vegan", time: 35, cals: 260, 
+                ingredients: ["2 cans Chickpeas", "1 Onion (chopped)", "2 Tomatoes (chopped)", "1 tbsp Ginger Garlic Paste", "2 tsp Chana Masala Spice"], 
+                instructions: "1. Heat oil and sauté onions until translucent.\n2. Add ginger-garlic paste and cook for 1 minute.\n3. Add tomatoes and spices; cook until tomatoes break down.\n4. Add drained chickpeas and a splash of water.\n5. Simmer for 15 minutes until the sauce thickens.\n6. Serve with rice or roti.", 
+                desc: "Spicy and tangy chickpea curry." 
+            },
+            
+            // ITALIAN
+            { 
+                name: "Spaghetti Carbonara", cuisine: "Italian", diet: "Non-Vegetarian", time: 20, cals: 450, 
+                ingredients: ["200g Spaghetti", "2 Large Eggs", "100g Pancetta or Bacon", "50g Parmesan Cheese", "Black Pepper"], 
+                instructions: "1. Boil pasta in salted water until al dente.\n2. While pasta cooks, fry pancetta in a pan until crisp.\n3. In a bowl, whisk eggs and grated parmesan cheese together.\n4. Drain pasta (save some water) and toss into the pan with pancetta (off heat).\n5. Quickly pour in egg mixture while tossing continuously to create a creamy sauce without scrambling.\n6. Season with plenty of black pepper.", 
+                desc: "Classic Roman pasta with a silky egg and cheese sauce." 
+            },
+            { 
+                name: "Margherita Pizza", cuisine: "Italian", diet: "Vegetarian", time: 25, cals: 300, 
+                ingredients: ["1 Pizza Dough base", "1/2 cup Tomato Sauce", "100g Fresh Mozzarella", "Fresh Basil Leaves", "1 tbsp Olive Oil"], 
+                instructions: "1. Preheat oven to its highest setting (450°F+).\n2. Stretch out the pizza dough on a baking sheet.\n3. Spread tomato sauce evenly, leaving the crust bare.\n4. Top with slices of fresh mozzarella.\n5. Bake for 10-12 minutes until crust is golden.\n6. Remove from oven and top with fresh basil leaves and a drizzle of oil.", 
+                desc: "Simple and classic pizza with fresh ingredients." 
+            },
+            { 
+                name: "Mushroom Risotto", cuisine: "Italian", diet: "Vegetarian", time: 45, cals: 400, 
+                ingredients: ["1 cup Arborio Rice", "200g Mushrooms", "4 cups Vegetable Broth", "2 tbsp Butter", "1/4 cup Parmesan", "1/2 cup White Wine"], 
+                instructions: "1. Sauté sliced mushrooms in butter until browned; set aside.\n2. In the same pot, toast the rice for 2 minutes.\n3. Deglaze with white wine and stir until evaporated.\n4. Add warm broth one ladle at a time, stirring constantly until absorbed.\n5. Continue for 20 mins until rice is creamy.\n6. Stir in parmesan and mushrooms before serving.", 
+                desc: "Creamy rice dish rich with earthy mushroom flavor." 
+            },
+
+            // MEXICAN
+            { 
+                name: "Classic Beef Tacos", cuisine: "Mexican", diet: "Non-Vegetarian", time: 20, cals: 250, 
+                ingredients: ["300g Ground Beef", "6 Hard Taco Shells", "Shredded Lettuce", "1/2 cup Cheddar Cheese", "Salsa"], 
+                instructions: "1. Brown the ground beef in a skillet over medium heat.\n2. Add taco seasoning and a splash of water; simmer for 5 mins.\n3. Warm the taco shells in the oven for 2 minutes.\n4. Fill shells with beef mixture.\n5. Top with lettuce, cheese, and salsa.", 
+                desc: "Crunchy shells filled with seasoned beef and fresh toppings." 
+            },
+            { 
+                name: "Guacamole & Chips", cuisine: "Mexican", diet: "Vegan", time: 10, cals: 150, 
+                ingredients: ["2 Ripe Avocados", "1/4 Onion (diced)", "1 Tomato (diced)", "1 Lime (juiced)", "Cilantro", "Tortilla Chips"], 
+                instructions: "1. Cut avocados in half and remove the pit.\n2. Scoop flesh into a bowl and mash with a fork.\n3. Stir in onion, tomato, cilantro, and lime juice.\n4. Season with salt to taste.\n5. Serve immediately with tortilla chips.", 
+                desc: "Fresh and creamy avocado dip perfect for snacking." 
+            },
+            { 
+                name: "Chicken Quesadilla", cuisine: "Mexican", diet: "Non-Vegetarian", time: 15, cals: 340, 
+                ingredients: ["2 Flour Tortillas", "1 cup Cooked Chicken (shredded)", "1/2 cup Monterey Jack Cheese", "1/4 cup Bell Peppers", "1 tbsp Butter"], 
+                instructions: "1. Heat a skillet over medium heat and melt a little butter.\n2. Place one tortilla in the skillet.\n3. Sprinkle cheese, chicken, and peppers on one half.\n4. Fold the tortilla over the filling.\n5. Cook for 2-3 mins per side until golden and cheese is melted.", 
+                desc: "Cheesy toasted tortilla sandwich with spiced chicken." 
+            },
+
+            // CHINESE
+            { 
+                name: "Chicken Stir Fry", cuisine: "Chinese", diet: "Non-Vegetarian", time: 15, cals: 280, 
+                ingredients: ["200g Chicken Breast (sliced)", "1 cup Broccoli", "2 tbsp Soy Sauce", "1 tsp Ginger (minced)", "2 cloves Garlic", "1 tsp Sesame Oil"], 
+                instructions: "1. Heat oil in a wok or large pan.\n2. Stir fry chicken strips until cooked through; remove from pan.\n3. Add garlic, ginger, and broccoli to the pan; stir fry for 3 mins.\n4. Return chicken to the pan.\n5. Pour in soy sauce and sesame oil.\n6. Toss everything together for 1 minute and serve.", 
+                desc: "Quick, healthy, and savory wok dish." 
+            },
+            { 
+                name: "Vegetable Fried Rice", cuisine: "Chinese", diet: "Vegan", time: 20, cals: 300, 
+                ingredients: ["2 cups Cooked Rice (cold)", "1/2 cup Carrots (diced)", "1/2 cup Peas", "2 tbsp Soy Sauce", "2 Green Onions"], 
+                instructions: "1. Heat oil in a wok.\n2. Sauté carrots and peas until tender.\n3. Add the cold cooked rice and break up any clumps.\n4. Drizzle soy sauce over the rice.\n5. Stir fry on high heat for 3-4 minutes.\n6. Garnish with chopped green onions.", 
+                desc: "Classic wok-fried rice, best made with leftovers." 
+            },
+            
+            // AMERICAN
+            { 
+                name: "Classic Cheeseburger", cuisine: "American", diet: "Non-Vegetarian", time: 25, cals: 550, 
+                ingredients: ["200g Ground Beef", "2 Burger Buns", "Lettuce Leaves", "Tomato Slices", "2 slices Cheddar Cheese", "Pickles"], 
+                instructions: "1. Form ground beef into two patties and season with salt/pepper.\n2. Grill or fry patties for 3-4 mins per side.\n3. Place cheese on patties in the last minute of cooking to melt.\n4. Toast the buns lightly.\n5. Assemble burgers with lettuce, tomato, patty, and pickles.", 
+                desc: "Juicy all-American beef burger with melted cheese." 
+            },
+            { 
+                name: "Peanut Butter Cookies", cuisine: "American", diet: "Gluten Free", time: 25, cals: 120, 
+                ingredients: ["1 cup Peanut Butter", "1 cup Sugar", "1 Large Egg"], 
+                instructions: "1. Preheat oven to 350°F (175°C).\n2. In a bowl, mix peanut butter, sugar, and egg until smooth.\n3. Roll dough into small balls and place on baking sheet.\n4. Flatten each ball with a fork to make a criss-cross pattern.\n5. Bake for 10-12 minutes.\n6. Let cool on the tray before moving.", 
+                desc: "Magical 3-ingredient flourless cookies." 
+            },
+
+             // THAI
+            { 
+                name: "Pad Thai", cuisine: "Thai", diet: "Non-Vegetarian", time: 30, cals: 350, 
+                ingredients: ["200g Rice Noodles", "100g Shrimp", "1/2 block Tofu", "2 tbsp Peanuts (crushed)", "1 cup Bean Sprouts", "Pad Thai Sauce", "1 Egg"], 
+                instructions: "1. Soak rice noodles in warm water until flexible.\n2. Stir fry shrimp and tofu cubes until cooked.\n3. Push to side, crack egg into pan and scramble.\n4. Add noodles and Pad Thai sauce.\n5. Toss everything together until noodles are soft.\n6. Top with crushed peanuts and bean sprouts.", 
+                desc: "Classic sweet and savory Thai stir-fried noodles." 
+            },
+            { 
+                name: "Thai Green Curry", cuisine: "Thai", diet: "Non-Vegetarian", time: 40, cals: 420, 
+                ingredients: ["300g Chicken Thighs", "2 tbsp Green Curry Paste", "1 can Coconut Milk", "1/2 cup Bamboo Shoots", "Thai Basil Leaves", "1 tbsp Fish Sauce"], 
+                instructions: "1. Fry green curry paste in a little oil until fragrant.\n2. Pour in half the coconut milk and stir until oil separates.\n3. Add chicken pieces and cook for 5 minutes.\n4. Add remaining coconut milk, bamboo shoots, and fish sauce.\n5. Simmer for 15 minutes.\n6. Stir in Thai basil leaves just before serving.", 
+                desc: "Spicy, aromatic, and creamy coconut curry." 
+            },
+            
+            // MEDITERRANEAN
+            { 
+                name: "Greek Salad", cuisine: "Mediterranean", diet: "Vegetarian", time: 15, cals: 280, 
+                ingredients: ["1 Cucumber (chopped)", "2 Tomatoes (chopped)", "1/2 Red Onion (sliced)", "1/2 cup Kalamata Olives", "1 block Feta Cheese", "1 tsp Oregano", "Olive Oil"], 
+                instructions: "1. Chop cucumber and tomatoes into large chunks.\n2. Place in a salad bowl with onion slices and olives.\n3. Place the block of feta cheese on top (or crumble it).\n4. Sprinkle generously with dried oregano.\n5. Drizzle with a good amount of olive oil.\n6. Serve with crusty bread.", 
+                desc: "Fresh, chunky village salad with no lettuce." 
+            },
+            { 
+                name: "Hummus & Pita Platter", cuisine: "Mediterranean", diet: "Vegan", time: 20, cals: 300, 
+                ingredients: ["1 can Chickpeas", "2 tbsp Tahini", "1 Lemon (juiced)", "1 clove Garlic", "Olive Oil", "Pita Bread"], 
+                instructions: "1. Rinse chickpeas.\n2. In a food processor, blend chickpeas, tahini, lemon juice, and garlic.\n3. Stream in olive oil and cold water until super smooth.\n4. Spread onto a plate.\n5. Drizzle with more oil and paprika.\n6. Serve with warm pita bread.", 
+                desc: "Creamy homemade chickpea dip." 
+            }
+        ];
+
+        // --- TOGGLE SIDEBAR ---
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+
+        // --- MAIN LOGIC ---
+        function findRecipes() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const diet = document.getElementById('dietSelect').value;
+            const cuisine = document.getElementById('cuisineSelect').value;
+            const maxTime = parseInt(document.getElementById('timeInput').value) || 999;
+            const allergyInput = document.getElementById('allergyInput').value.toLowerCase();
+            const numToShow = parseInt(document.getElementById('numRecipes').value);
+            
+            const allergies = allergyInput.split(',').map(a => a.trim()).filter(a => a !== "");
+
+            // FILTER LOGIC
+            let filtered = recipesDB.filter(recipe => {
+                // Search Match
+                const matchesSearch = recipe.name.toLowerCase().includes(query) || 
+                                      recipe.ingredients.some(ing => ing.toLowerCase().includes(query));
+                
+                // If query is present, must match. If empty, match all (for randomization later)
+                if (query && !matchesSearch) return false;
+
+                if (diet !== "Any" && recipe.diet !== diet) return false;
+                if (cuisine !== "Any" && recipe.cuisine !== cuisine) return false;
+                if (recipe.time > maxTime) return false;
+
+                if (allergies.length > 0) {
+                    const hasAllergen = recipe.ingredients.some(ing => {
+                        return allergies.some(allergen => ing.toLowerCase().includes(allergen));
+                    });
+                    if (hasAllergen) return false;
+                }
+
+                return true;
+            });
+
+            // RANDOMIZATION LOGIC
+            // If no search query is typed, shuffle the results
+            if (!query) {
+                filtered.sort(() => Math.random() - 0.5);
+            }
+
+            renderFeed(filtered.slice(0, numToShow));
+        }
+
+        function renderFeed(recipes) {
+            const feed = document.getElementById('recipeFeed');
+            const resultBox = document.getElementById('resultBox');
+            
+            feed.innerHTML = "";
+            
+            if (recipes.length === 0) {
+                resultBox.style.display = 'block';
+                resultBox.style.backgroundColor = 'rgba(255, 75, 75, 0.1)';
+                resultBox.style.color = '#FF4B4B';
+                resultBox.style.borderColor = 'rgba(255, 75, 75, 0.2)';
+                resultBox.innerText = "No recipes found matching your criteria.";
+                return;
+            }
+
+            resultBox.style.display = 'block';
+            resultBox.style.backgroundColor = 'rgba(33, 195, 84, 0.1)';
+            resultBox.style.color = '#21c354';
+            resultBox.style.borderColor = 'rgba(33, 195, 84, 0.2)';
+            resultBox.innerText = `Found ${recipes.length} matching recipes!`;
+
+            recipes.forEach(recipe => {
+                // Format Ingredients List
+                const ingListHTML = recipe.ingredients.map(ing => `<li>${ing}</li>`).join('');
+                
+                // Format Instructions: Split by newlines and wrap in styled divs
+                const steps = recipe.instructions.split('\n').filter(s => s.trim().length > 0);
+                const instHTML = steps.map(step => {
+                    // Simple parser to separate number from text if present (e.g. "1. Step")
+                    const match = step.match(/^(\d+\.)\s*(.*)/);
+                    if (match) {
+                        return `<div class="inst-step"><span class="step-num">${match[1]}</span><span>${match[2]}</span></div>`;
+                    }
+                    return `<p>${step}</p>`;
+                }).join('');
+
+                const card = document.createElement('div');
+                card.className = 'recipe-container';
+                card.innerHTML = `
+                    <div class="recipe-header">
+                        <h2 class="recipe-title">${recipe.name}</h2>
+                        <div class="tag-container">
+                             <span class="cuisine-tag">${recipe.cuisine}</span>
+                             <span class="diet-tag">${recipe.diet}</span>
+                        </div>
+                    </div>
+                    <p class="recipe-desc">${recipe.desc}</p>
+                    
+                    <div class="meta-row">
+                        <span>Total Time: ${recipe.time} min</span>
+                        <span>Calories: ${recipe.cals} kcal</span>
+                        <span>Serves: 2-4 (est.)</span>
+                    </div>
+
+                    <div class="details-columns">
+                        <div>
+                            <h3>Ingredients</h3>
+                            <ul class="ing-list">
+                                ${ingListHTML}
+                            </ul>
+                        </div>
+                        <div>
+                            <h3>Instructions</h3>
+                            <div class="inst-list">
+                                ${instHTML}
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="saveRecipe('${recipe.name}')" class="save-btn">Save Recipe</button>
+                `;
+                feed.appendChild(card);
+            });
+        }
+
+        function saveRecipe(recipeName) {
+            const recipe = recipesDB.find(r => r.name === recipeName);
+            if (!recipe) return;
+
+            const text = `
+RECIPE: ${recipe.name.toUpperCase()}
+----------------------------------------
+Description: ${recipe.desc}
+Cuisine: ${recipe.cuisine} | Diet: ${recipe.diet} | Time: ${recipe.time} min | Calories: ${recipe.cals}
+
+INGREDIENTS:
+${recipe.ingredients.map(i => `- ${i}`).join('\n')}
+
+INSTRUCTIONS:
+${recipe.instructions}
+            `;
+
+            const blob = new Blob([text], { type: 'text/plain' });
+            const anchor = document.createElement('a');
+            anchor.href = URL.createObjectURL(blob);
+            anchor.download = `${recipe.name.replace(/ /g, '_')}.txt`;
+            anchor.click();
+        }
+    </script>
+</body>
+</html>
